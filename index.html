@@ -72,18 +72,20 @@
         button:hover, button:focus {
             background-color: #e67300;
         }
-        #videoContainer {
+        #cameraContainer {
             width: 100%;
             max-width: 500px;
             margin: 0 auto 15px;
-            position: relative;
+            text-align: center;
             background: #000;
             border-radius: 8px;
-            overflow: hidden;
+            padding: 10px;
         }
         #videoElement {
             width: 100%;
-            display: block;
+            max-height: 60vh;
+            display: none;
+            border-radius: 4px;
         }
         #canvas {
             display: none;
@@ -144,6 +146,17 @@
             font-weight: bold;
             margin-top: 10px;
         }
+        #enableCameraBtn {
+            background: var(--primary);
+            color: var(--dark);
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 10px auto;
+            display: block;
+            cursor: pointer;
+        }
         @media (max-width: 480px) {
             .attendance-item {
                 flex-direction: column;
@@ -154,7 +167,7 @@
                 width: 80px;
                 height: 80px;
             }
-            #videoContainer {
+            #cameraContainer {
                 max-width: 100%;
             }
         }
@@ -174,7 +187,8 @@
                 <input type="text" id="employeeName" placeholder="أدخل اسمك الكامل" autocomplete="off">
             </div>
             
-            <div id="videoContainer">
+            <div id="cameraContainer">
+                <!-- سيتم إضافة زر التفعيل ديناميكيًا -->
                 <video id="videoElement" autoplay playsinline></video>
                 <div id="cameraError" class="permission-error hidden"></div>
             </div>
@@ -242,6 +256,7 @@
         const filterDate = document.getElementById('filterDate');
         const exportBtn = document.getElementById('exportBtn');
         const cameraError = document.getElementById('cameraError');
+        const cameraContainer = document.getElementById('cameraContainer');
         
         // تحقق من وقت العمل (السبت إلى الخميس حتى 6 مساءً)
         function isWorkingTime() {
@@ -278,40 +293,69 @@
             }
         });
         
-        // تشغيل الكاميرا مع تحسينات للجوال
-        function startCamera() {
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ 
-                    video: { 
+        // بدء تشغيل الكاميرا
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
                         facingMode: 'user',
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
-                    } 
-                }).then(stream => {
-                    videoElement.srcObject = stream;
-                    cameraError.classList.add('hidden');
-                    videoElement.style.height = 'auto';
-                }).catch(error => {
-                    console.error('Camera error:', error);
-                    cameraError.textContent = 'خطأ: لا يمكن الوصول إلى الكاميرا. يرجى التأكد من منح الإذن وتحديث الصفحة.';
-                    cameraError.classList.remove('hidden');
-                    captureBtn.disabled = true;
+                    }
                 });
-            } else {
-                cameraError.textContent = 'المتصفح لا يدعم الوصول إلى الكاميرا';
+                videoElement.srcObject = stream;
+                videoElement.style.display = 'block';
+                cameraError.classList.add('hidden');
+                return true;
+            } catch (err) {
+                console.error('Camera error:', err);
+                cameraError.innerHTML = `
+                    <p>يجب السماح باستخدام الكاميرا لتسجيل الحضور</p>
+                    <button id="retryCamera" style="background: var(--primary); padding: 8px; border: none; border-radius: 4px; margin-top: 5px;">
+                        إعادة المحاولة
+                    </button>
+                `;
                 cameraError.classList.remove('hidden');
-                captureBtn.disabled = true;
+                
+                document.getElementById('retryCamera')?.addEventListener('click', startCamera);
+                return false;
             }
         }
-        
+
+        // تهيئة الكاميرا بناءً على نوع الجهاز
+        function initCamera() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                cameraError.textContent = 'المتصفح لا يدعم الوصول إلى الكاميرا';
+                cameraError.classList.remove('hidden');
+                return;
+            }
+
+            // على أجهزة الجوال نعرض زر التفعيل
+            if (/Mobi|Android/i.test(navigator.userAgent)) {
+                const enableBtn = document.createElement('button');
+                enableBtn.id = 'enableCameraBtn';
+                enableBtn.textContent = 'تفعيل الكاميرا';
+                cameraContainer.prepend(enableBtn);
+                
+                enableBtn.addEventListener('click', async () => {
+                    enableBtn.disabled = true;
+                    enableBtn.textContent = 'جاري التحميل...';
+                    const success = await startCamera();
+                    if (success) {
+                        enableBtn.remove();
+                    } else {
+                        enableBtn.disabled = false;
+                        enableBtn.textContent = 'تفعيل الكاميرا';
+                    }
+                });
+            } else {
+                // على أجهزة الكمبيوتر نبدأ الكاميرا تلقائياً
+                startCamera();
+            }
+        }
+
         // بدء تشغيل الكاميرا عند تحميل الصفحة
-        startCamera();
-        
-        // إعادة تشغيل الكاميرا عند الحاجة
-        document.getElementById('videoContainer').addEventListener('click', () => {
-            if (videoElement.srcObject) return;
-            startCamera();
-        });
+        initCamera();
         
         // التقاط الصورة وحفظها في Firebase
         captureBtn.addEventListener('click', async () => {
