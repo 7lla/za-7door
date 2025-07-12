@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>نظام تسجيل الحضور الذكي</title>
+    <style>
+        :root {
+            --primary: #ff7b00;
+            --dark: #1a1a1a;
+            --light: #f8f9fa;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--dark);
+            color: var(--light);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            max-width: 100%;
+            width: 100%;
+            padding: 15px;
+            flex: 1;
+        }
+        header {
+            background-color: var(--primary);
+            padding: 15px 0;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        h1, h2 {
+            margin: 0;
+            color: var(--dark);
+        }
+        .employee-section, .admin-section {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--primary);
+        }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        button {
+            background-color: var(--primary);
+            color: var(--dark);
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        button:hover, button:focus {
+            background-color: #e67300;
+        }
+        #videoContainer {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto 15px;
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #videoElement {
+            width: 100%;
+            display: block;
+        }
+        #canvas {
+            display: none;
+        }
+        .attendance-list {
+            margin-top: 15px;
+        }
+        .attendance-item {
+            background-color: #3a3a3a;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .attendance-item img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .filters input {
+            flex: 1;
+            min-width: 120px;
+        }
+        .loading {
+            text-align: center;
+            color: var(--primary);
+            margin: 15px 0;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .permission-error {
+            color: #ff5555;
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 85, 85, 0.1);
+            border-radius: 4px;
+        }
+        #adminLoginLink {
+            display: inline-block;
+            padding: 10px 15px;
+            background: var(--primary);
+            color: var(--dark);
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        @media (max-width: 480px) {
+            .attendance-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .attendance-item img {
+                margin-top: 10px;
+                width: 80px;
+                height: 80px;
+            }
+            #videoContainer {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>نظام تسجيل الحضور الذكي</h1>
+    </header>
+
+    <div class="container">
+        <!-- واجهة الموظف -->
+        <section class="employee-section" id="employeeSection">
+            <h2>تسجيل الحضور</h2>
+            <div class="form-group">
+                <label for="employeeName">اسم الموظف</label>
+                <input type="text" id="employeeName" placeholder="أدخل اسمك الكامل" autocomplete="off">
+            </div>
+            
+            <div id="videoContainer">
+                <video id="videoElement" autoplay playsinline></video>
+                <div id="cameraError" class="permission-error hidden"></div>
+            </div>
+            <canvas id="canvas"></canvas>
+            
+            <button id="captureBtn">تسجيل الحضور</button>
+            
+            <div id="attendanceMessage"></div>
+        </section>
+
+        <!-- لوحة التحكم -->
+        <section class="admin-section hidden" id="adminSection">
+            <h2>لوحة تحكم المسؤول</h2>
+            
+            <div class="filters">
+                <input type="text" id="filterName" placeholder="تصفية حسب الاسم">
+                <input type="date" id="filterDate" placeholder="تصفية حسب التاريخ">
+            </div>
+            
+            <button id="exportBtn">تصدير إلى Excel</button>
+            
+            <div class="attendance-list" id="attendanceList">
+                <div class="loading">جاري تحميل سجلات الحضور...</div>
+            </div>
+        </section>
+        
+        <!-- رابط دخول المسؤول -->
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="#" id="adminLoginLink">دخول المسؤول</a>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+        import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYm0l8Q9WwJ_64GYYQW-atR7y8ygJXCwQ",
+            authDomain: "attendance-recording-sys-94413.firebaseapp.com",
+            databaseURL: "https://attendance-recording-sys-94413-default-rtdb.firebaseio.com",
+            projectId: "attendance-recording-sys-94413",
+            storageBucket: "attendance-recording-sys-94413.appspot.com",
+            messagingSenderId: "204650091968",
+            appId: "1:204650091968:web:0d9b02c7c7cf3377eb6425"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // العناصر الرئيسية
+        const employeeSection = document.getElementById('employeeSection');
+        const adminSection = document.getElementById('adminSection');
+        const adminLoginLink = document.getElementById('adminLoginLink');
+        const videoElement = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const employeeName = document.getElementById('employeeName');
+        const attendanceMessage = document.getElementById('attendanceMessage');
+        const attendanceList = document.getElementById('attendanceList');
+        const filterName = document.getElementById('filterName');
+        const filterDate = document.getElementById('filterDate');
+        const exportBtn = document.getElementById('exportBtn');
+        const cameraError = document.getElementById('cameraError');
+        
+        // تحقق من وقت العمل (السبت إلى الخميس حتى 6 مساءً)
+        function isWorkingTime() {
+            const now = new Date();
+            const day = now.getDay();
+            const hour = now.getHours();
+            return !(day === 5 || hour >= 18);
+        }
+        
+        // تحقق من وقت العمل عند تحميل الصفحة
+        if (!isWorkingTime()) {
+            employeeSection.innerHTML = `
+                <h2>تسجيل الحضور</h2>
+                <p style="color: var(--primary); text-align: center;">
+                    نظام تسجيل الحضور متاح فقط من السبت إلى الخميس حتى الساعة 6 مساءً
+                </p>
+            `;
+            captureBtn.disabled = true;
+        }
+        
+        // تسجيل الدخول كمسؤول
+        adminLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const username = prompt('اسم المستخدم:');
+            const password = prompt('كلمة المرور:');
+            
+            if (username === 'علاء' && password === '00') {
+                employeeSection.classList.add('hidden');
+                adminSection.classList.remove('hidden');
+                adminLoginLink.style.display = 'none';
+                loadAttendanceRecords();
+            } else {
+                alert('بيانات الدخول غير صحيحة!');
+            }
+        });
+        
+        // تشغيل الكاميرا مع تحسينات للجوال
+        function startCamera() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                }).then(stream => {
+                    videoElement.srcObject = stream;
+                    cameraError.classList.add('hidden');
+                    videoElement.style.height = 'auto';
+                }).catch(error => {
+                    console.error('Camera error:', error);
+                    cameraError.textContent = 'خطأ: لا يمكن الوصول إلى الكاميرا. يرجى التأكد من منح الإذن وتحديث الصفحة.';
+                    cameraError.classList.remove('hidden');
+                    captureBtn.disabled = true;
+                });
+            } else {
+                cameraError.textContent = 'المتصفح لا يدعم الوصول إلى الكاميرا';
+                cameraError.classList.remove('hidden');
+                captureBtn.disabled = true;
+            }
+        }
+        
+        // بدء تشغيل الكاميرا عند تحميل الصفحة
+        startCamera();
+        
+        // إعادة تشغيل الكاميرا عند الحاجة
+        document.getElementById('videoContainer').addEventListener('click', () => {
+            if (videoElement.srcObject) return;
+            startCamera();
+        });
+        
+        // التقاط الصورة وحفظها في Firebase
+        captureBtn.addEventListener('click', async () => {
+            if (!employeeName.value.trim()) {
+                attendanceMessage.innerHTML = `<p style="color: #ff5555;">يرجى إدخال اسم الموظف أولاً</p>`;
+                employeeName.focus();
+                return;
+            }
+            
+            if (!videoElement.srcObject) {
+                attendanceMessage.innerHTML = `<p style="color: #ff5555;">الكاميرا غير جاهزة، يرجى المحاولة مرة أخرى</p>`;
+                return;
+            }
+            
+            const context = canvas.getContext('2d');
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            const now = new Date();
+            const dateTime = now.toLocaleString('ar-EG');
+            
+            attendanceMessage.innerHTML = `<p style="color: var(--primary);">جاري حفظ بيانات الحضور...</p>`;
+            captureBtn.disabled = true;
+            
+            try {
+                const attendanceRef = ref(database, 'attendanceRecords');
+                const newRecordRef = push(attendanceRef);
+                
+                await set(newRecordRef, {
+                    name: employeeName.value.trim(),
+                    dateTime: dateTime,
+                    timestamp: now.getTime(),
+                    image: imageData
+                });
+                
+                attendanceMessage.innerHTML = `
+                    <p style="color: #55ff55;">
+                        تم تسجيل حضور ${employeeName.value.trim()} بنجاح في ${dateTime}
+                    </p>
+                `;
+                employeeName.value = '';
+            } catch (error) {
+                console.error('Error saving record:', error);
+                attendanceMessage.innerHTML = `
+                    <p style="color: #ff5555;">
+                        حدث خطأ أثناء حفظ البيانات: ${error.message}
+                    </p>
+                `;
+            } finally {
+                captureBtn.disabled = false;
+            }
+        });
+        
+        // تحميل سجلات الحضور من Firebase
+        function loadAttendanceRecords(filterNameValue = '', filterDateValue = '') {
+            attendanceList.innerHTML = '<div class="loading">جاري تحميل سجلات الحضور...</div>';
+            
+            const attendanceRef = ref(database, 'attendanceRecords');
+            onValue(attendanceRef, (snapshot) => {
+                let records = [];
+                snapshot.forEach(childSnapshot => {
+                    records.push({
+                        id: childSnapshot.key,
+                        ...childSnapshot.val()
+                    });
+                });
+                
+                records.sort((a, b) => b.timestamp - a.timestamp);
+                
+                if (filterNameValue) {
+                    records = records.filter(record => 
+                        record.name.includes(filterNameValue)
+                    );
+                }
+                
+                if (filterDateValue) {
+                    const filterDate = new Date(filterDateValue);
+                    records = records.filter(record => {
+                        const recordDate = new Date(record.timestamp);
+                        return (
+                            recordDate.getFullYear() === filterDate.getFullYear() &&
+                            recordDate.getMonth() === filterDate.getMonth() &&
+                            recordDate.getDate() === filterDate.getDate()
+                        );
+                    });
+                }
+                
+                renderAttendanceList(records);
+            });
+        }
+        
+        // عرض قائمة الحضور
+        function renderAttendanceList(records) {
+            attendanceList.innerHTML = '';
+            
+            if (records.length === 0) {
+                attendanceList.innerHTML = '<p>لا توجد سجلات حضور</p>';
+                return;
+            }
+            
+            records.forEach(record => {
+                const item = document.createElement('div');
+                item.className = 'attendance-item';
+                item.innerHTML = `
+                    <div>
+                        <h3>${record.name}</h3>
+                        <p>${record.dateTime}</p>
+                    </div>
+                    <img src="${record.image}" alt="صورة الموظف" loading="lazy">
+                `;
+                attendanceList.appendChild(item);
+            });
+        }
+        
+        // تصدير إلى Excel (CSV)
+        exportBtn.addEventListener('click', () => {
+            attendanceList.innerHTML = '<div class="loading">جاري تحضير البيانات للتصدير...</div>';
+            
+            const attendanceRef = ref(database, 'attendanceRecords');
+            onValue(attendanceRef, (snapshot) => {
+                let records = [];
+                snapshot.forEach(childSnapshot => {
+                    records.push(childSnapshot.val());
+                });
+                
+                if (records.length === 0) {
+                    alert('لا توجد سجلات حضور لتصديرها');
+                    loadAttendanceRecords();
+                    return;
+                }
+                
+                records.sort((a, b) => b.timestamp - a.timestamp);
+                
+                let csvContent = "data:text/csv;charset=utf-8,";
+                csvContent += "اسم الموظف,التاريخ والوقت,رابط الصورة\n";
+                
+                records.forEach(record => {
+                    csvContent += `"${record.name.replace(/"/g, '""')}","${record.dateTime}","${record.image}"\n`;
+                });
+                
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `سجل_الحضور_${new Date().toLocaleDateString('ar-EG')}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                loadAttendanceRecords();
+            }, { onlyOnce: true });
+        });
+        
+        // تطبيق الفلاتر
+        filterName.addEventListener('input', () => {
+            loadAttendanceRecords(filterName.value, filterDate.value);
+        });
+        
+        filterDate.addEventListener('change', () => {
+            loadAttendanceRecords(filterName.value, filterDate.value);
+        });
+    </script>
+</body>
+</html>
