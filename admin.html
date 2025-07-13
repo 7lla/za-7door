@@ -1,161 +1,268 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>لوحة تحكم المسؤول</title>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCYm0l8Q9WwJ_64GYYQW-atR7y8ygJXCwQ",
-      authDomain: "attendance-recording-sys-94413.firebaseapp.com",
-      databaseURL: "https://attendance-recording-sys-94413-default-rtdb.firebaseio.com",
-      projectId: "attendance-recording-sys-94413",
-      storageBucket: "attendance-recording-sys-94413.appspot.com",
-      messagingSenderId: "204650091968",
-      appId: "1:204650091968:web:0d9b02c7c7cf3377eb6425"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
-
-    const targetLat = 26.435722;
-    const targetLon = 50.087556;
-
-    function getDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c * 1000;
-    }
-
-    window.onload = function () {
-      const username = prompt("اسم المستخدم:");
-      const password = prompt("كلمة المرور:");
-      if (username !== "علاء" || password !== "00") {
-        alert("بيانات الدخول غير صحيحة");
-        document.body.innerHTML = "<h2>تم رفض الوصول</h2>";
-        return;
-      }
-
-      const tableBody = document.getElementById("attendanceBody");
-      const refData = ref(database, 'attendanceRecords');
-      onValue(refData, snapshot => {
-        const rows = [];
-        snapshot.forEach(child => {
-          const data = child.val();
-          const name = data.name;
-          const date = data.dateTime?.split(',')[0] || "";
-          const time = data.timeOnly || "";
-          const image = data.image || "";
-          const lat = data.lat || null;
-          const lon = data.lon || null;
-
-          let outside = '';
-          if (lat && lon) {
-            const dist = getDistance(lat, lon, targetLat, targetLon);
-            outside = dist > 100 ? '✅ خارج النطاق' : '';
-          }
-
-          rows.push(`
-            <tr>
-              <td>${name}</td>
-              <td>${date}</td>
-              <td>${time}</td>
-              <td>${outside}</td>
-              <td><img src="${image}" width="80" /></td>
-            </tr>
-          `);
-        });
-
-        tableBody.innerHTML = rows.join('');
-      });
-
-      document.getElementById("exportBtn").onclick = function () {
-        const rows = [...document.querySelectorAll("tbody tr")];
-        if (rows.length === 0) {
-          alert("لا توجد بيانات لتصديرها");
-          return;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - شركة الزهراني</title>
+    <style>
+        :root {
+            --primary: #0066cc;
+            --secondary: #ffffff;
         }
-
-        let csv = "الاسم,التاريخ,الوقت,خارج النطاق\n";
-        rows.forEach(row => {
-          const cols = row.querySelectorAll("td");
-          csv += `${cols[0].innerText},${cols[1].innerText},${cols[2].innerText},${cols[3].innerText}\n`;
-        });
-
-        const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "سجل_الحضور.csv";
-        a.click();
-      };
-
-      document.getElementById("filter").addEventListener("input", function () {
-        const q = this.value.toLowerCase();
-        const rows = document.querySelectorAll("tbody tr");
-        rows.forEach(row => {
-          row.style.display = row.innerText.toLowerCase().includes(q) ? "" : "none";
-        });
-      });
-    };
-  </script>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f8f9fa;
-      padding: 20px;
-      text-align: center;
-      direction: rtl;
-    }
-    h2 {
-      color: #007bff;
-    }
-    input, button {
-      padding: 10px;
-      margin: 10px;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-    }
-    img {
-      border-radius: 6px;
-    }
-  </style>
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+        }
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .filters input, .filters select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex: 1;
+        }
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: var(--primary);
+            color: white;
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+        .photo-cell img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+        }
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 20px;
+            max-width: 800px;
+            border-radius: 8px;
+            position: relative;
+        }
+        .close {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .modal-image {
+            width: 100%;
+            max-height: 600px;
+            object-fit: contain;
+        }
+    </style>
 </head>
 <body>
-  <h2>لوحة تحكم المسؤول</h2>
-  <input type="text" id="filter" placeholder="فلترة حسب الاسم أو التاريخ">
-  <button id="exportBtn">تصدير إلى Excel</button>
-  <table>
-    <thead>
-      <tr>
-        <th>الاسم</th>
-        <th>التاريخ</th>
-        <th>الوقت</th>
-        <th>خارج النطاق</th>
-        <th>الصورة</th>
-      </tr>
-    </thead>
-    <tbody id="attendanceBody">
-      <tr><td colspan="5">جارٍ التحميل...</td></tr>
-    </tbody>
-  </table>
+    <header>
+        <h1>لوحة تحكم المسؤول</h1>
+        <p>نظام تسجيل الحضور - شركة الزهراني</p>
+    </header>
+
+    <div class="container">
+        <div class="filters">
+            <input type="text" id="searchName" placeholder="بحث بالاسم">
+            <input type="date" id="searchDate">
+            <button id="searchBtn">بحث</button>
+            <button id="exportBtn">تصدير Excel</button>
+        </div>
+
+        <table id="attendanceTable">
+            <thead>
+                <tr>
+                    <th>الاسم</th>
+                    <th>التاريخ</th>
+                    <th>المسافة</th>
+                    <th>الصورة</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- سيتم ملؤها بالبيانات -->
+            </tbody>
+        </table>
+    </div>
+
+    <div id="imageModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <img id="modalImage" class="modal-image">
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYm0l8Q9WwJ_64GYYQW-atR7y8ygJXCwQ",
+            authDomain: "attendance-recording-sys-94413.firebaseapp.com",
+            projectId: "attendance-recording-sys-94413",
+            storageBucket: "attendance-recording-sys-94413.appspot.com",
+            messagingSenderId: "204650091968",
+            appId: "1:204650091968:web:0d9b02c7c7cf3377eb6425"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // عناصر DOM
+        const elements = {
+            searchName: document.getElementById('searchName'),
+            searchDate: document.getElementById('searchDate'),
+            searchBtn: document.getElementById('searchBtn'),
+            exportBtn: document.getElementById('exportBtn'),
+            tableBody: document.getElementById('tableBody'),
+            attendanceTable: document.getElementById('attendanceTable'),
+            imageModal: document.getElementById('imageModal'),
+            modalImage: document.getElementById('modalImage'),
+            closeModal: document.querySelector('.close')
+        };
+
+        // أحداث النظام
+        elements.searchBtn.addEventListener('click', loadAttendance);
+        elements.exportBtn.addEventListener('click', exportToExcel);
+        elements.closeModal.addEventListener('click', () => {
+            elements.imageModal.style.display = 'none';
+        });
+
+        // تحميل بيانات الحضور
+        async function loadAttendance() {
+            try {
+                let q = query(collection(db, "attendance"), orderBy("timestamp", "desc"));
+                
+                if (elements.searchName.value) {
+                    q = query(q, where("name", ">=", elements.searchName.value));
+                    q = query(q, where("name", "<=", elements.searchName.value + '\uf8ff'));
+                }
+                
+                if (elements.searchDate.value) {
+                    const date = new Date(elements.searchDate.value);
+                    const nextDay = new Date(date);
+                    nextDay.setDate(date.getDate() + 1);
+                    
+                    q = query(q, where("timestamp", ">=", date));
+                    q = query(q, where("timestamp", "<", nextDay));
+                }
+                
+                const querySnapshot = await getDocs(q);
+                elements.tableBody.innerHTML = '';
+                
+                if (querySnapshot.empty) {
+                    elements.tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center">لا توجد بيانات</td></tr>';
+                    return;
+                }
+                
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const row = document.createElement('tr');
+                    
+                    const date = data.timestamp?.toDate() || new Date();
+                    const formattedDate = date.toLocaleString('ar-EG');
+                    
+                    row.innerHTML = `
+                        <td>${data.name}</td>
+                        <td>${formattedDate}</td>
+                        <td>${data.distance || 'غير معروف'} متر</td>
+                        <td class="photo-cell">
+                            <img src="${data.photoURL}" alt="صورة الموظف" 
+                                 onclick="showImage('${data.photoURL}')">
+                        </td>
+                    `;
+                    
+                    elements.tableBody.appendChild(row);
+                });
+                
+                // تعريف دالة showImage بشكل عام
+                window.showImage = (url) => {
+                    elements.modalImage.src = url;
+                    elements.imageModal.style.display = 'block';
+                };
+                
+            } catch (error) {
+                console.error("Error loading attendance:", error);
+                elements.tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:red">خطأ في تحميل البيانات</td></tr>`;
+            }
+        }
+
+        // تصدير إلى Excel
+        async function exportToExcel() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "attendance"));
+                let csvContent = "الاسم,التاريخ,المسافة (متر),رابط الصورة\n";
+                
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const date = data.timestamp?.toDate() || new Date();
+                    const formattedDate = date.toLocaleString('ar-EG');
+                    
+                    csvContent += `"${data.name}","${formattedDate}","${data.distance || 'غير معروف"}","${data.photoURL}"\n`;
+                });
+                
+                const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `حضور_الموظفين_${new Date().toLocaleDateString('ar-EG')}.csv`;
+                link.click();
+            } catch (error) {
+                console.error("Error exporting data:", error);
+                alert("حدث خطأ أثناء التصدير");
+            }
+        }
+
+        // تحميل البيانات عند فتح الصفحة
+        loadAttendance();
+    </script>
 </body>
 </html>
-
