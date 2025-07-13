@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل حضور الموظف</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #ffffff;
+            color: #000;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        header {
+            background-color: #007bff;
+            padding: 20px;
+            border-bottom-left-radius: 50px;
+            border-bottom-right-radius: 50px;
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #fff;
+            padding: 5px;
+        }
+        h1 {
+            color: #fff;
+        }
+        .container {
+            max-width: 400px;
+            margin: auto;
+            padding: 20px;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #video {
+            width: 100%;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: none;
+        }
+        #status {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="https://i.ibb.co/Pz9wt7MD/12za.png" class="logo" alt="logo">
+        <h1>تسجيل الحضور</h1>
+    </header>
+    <div class="container">
+        <input type="text" id="name" placeholder="ادخل اسمك">
+        <video id="video" autoplay></video>
+        <button onclick="startCamera()">تشغيل الكاميرا</button>
+        <button onclick="registerAttendance()">تسجيل الحضور</button>
+        <p id="status"></p>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const statusText = document.getElementById('status');
+        const nameInput = document.getElementById('name');
+        let stream;
+
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(s => {
+                    stream = s;
+                    video.srcObject = s;
+                    video.style.display = 'block';
+                })
+                .catch(() => alert('لا يمكن الوصول إلى الكاميرا'));
+        }
+
+        function registerAttendance() {
+            const name = nameInput.value.trim();
+            if (!name) {
+                statusText.textContent = 'يرجى إدخال الاسم';
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(async pos => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                const targetLat = 26.435722;
+                const targetLon = 50.087556;
+                const distance = getDistanceFromLatLonInMeters(lat, lon, targetLat, targetLon);
+                if (distance > 100) {
+                    statusText.textContent = 'تم التسجيل لكنك خارج نطاق المكتب!';
+                } else {
+                    statusText.style.color = 'green';
+                    statusText.textContent = 'تم تسجيل الحضور بنجاح';
+                }
+            }, () => {
+                statusText.textContent = 'فشل في تحديد الموقع الجغرافي';
+            });
+        }
+
+        function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = 
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            const d = R * c * 1000;
+            return d;
+        }
+
+        function deg2rad(deg) {
+            return deg * (Math.PI / 180);
+        }
+    </script>
+</body>
+</html>
